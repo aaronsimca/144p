@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { Select } from "./components/ui/select"
 import { Button } from "./components/ui/button"
-import { FFmpeg } from '@ffmpeg/ffmpeg'
-import { fetchFile, toBlobURL } from '@ffmpeg/util'
+import dynamic from 'next/dynamic'
+
+const FFmpegClient = dynamic(() => import('./components/FFmpegClient'), { ssr: false })
 
 export default function Home() {
   const [progress, setProgress] = useState(0)
@@ -12,60 +13,11 @@ export default function Home() {
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [outputResolution, setOutputResolution] = useState('144')
   const [outputFormat, setOutputFormat] = useState('mp4')
-  const ffmpegRef = useRef(new FFmpeg())
-  const [loaded, setLoaded] = useState(false)
-
-  useEffect(() => {
-    load()
-  }, [])
-
-  const load = async () => {
-    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.2/dist/umd'
-    const ffmpeg = ffmpegRef.current
-    ffmpeg.on('progress', ({ progress }) => {
-      setProgress(Math.round(progress * 100))
-    })
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-    })
-    setLoaded(true)
-  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setVideoFile(e.target.files[0])
     }
-  }
-
-  const handleDownload = async () => {
-    if (!videoFile || !loaded) return
-
-    setIsConverting(true)
-    setProgress(0)
-
-    const ffmpeg = ffmpegRef.current
-    const inputFileName = 'input' + videoFile.name.substring(videoFile.name.lastIndexOf('.'))
-    const outputFileName = `output.${outputFormat}`
-
-    await ffmpeg.writeFile(inputFileName, await fetchFile(videoFile))
-
-    await ffmpeg.exec([
-      '-i', inputFileName,
-      '-vf', `scale=-2:${outputResolution}`,
-      '-c:a', 'copy',
-      outputFileName
-    ])
-
-    const data = await ffmpeg.readFile(outputFileName)
-    const blob = new Blob([data], { type: `video/${outputFormat}` })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = outputFileName
-    a.click()
-
-    setIsConverting(false)
   }
 
   return (
@@ -110,14 +62,13 @@ export default function Home() {
           </div>
           <div className="text-right mt-1 text-sm text-gray-500">{progress}%</div>
         </div>
-        <Button 
-          variant="primary" 
-          className="w-full py-2 text-sm"
-          onClick={handleDownload}
-          disabled={isConverting || !videoFile || !loaded}
-        >
-          {isConverting ? 'Converting...' : 'Download Output'}
-        </Button>
+        <FFmpegClient
+          videoFile={videoFile}
+          outputResolution={outputResolution}
+          outputFormat={outputFormat}
+          setProgress={setProgress}
+          setIsConverting={setIsConverting}
+        />
       </div>
     </div>
   )
