@@ -1,8 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react'
-import { FFmpeg } from '@ffmpeg/ffmpeg'
-import { fetchFile, toBlobURL } from '@ffmpeg/util'
+import { useState, useEffect } from 'react'
 import { Button } from "./ui/button"
 
 interface FFmpegClientProps {
@@ -14,17 +12,25 @@ interface FFmpegClientProps {
 }
 
 export default function FFmpegClient({ videoFile, outputResolution, outputFormat, setProgress, setIsConverting }: FFmpegClientProps) {
-  const ffmpegRef = useRef(new FFmpeg())
+  const [ffmpeg, setFFmpeg] = useState<any>(null)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    load()
+    import('@ffmpeg/ffmpeg').then(({ FFmpeg }) => {
+      setFFmpeg(new FFmpeg())
+    })
   }, [])
 
+  useEffect(() => {
+    if (ffmpeg) {
+      load()
+    }
+  }, [ffmpeg])
+
   const load = async () => {
+    const { toBlobURL } = await import('@ffmpeg/util')
     const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.2/dist/umd'
-    const ffmpeg = ffmpegRef.current
-    ffmpeg.on('progress', ({ progress }) => {
+    ffmpeg.on('progress', ({ progress }: { progress: number }) => {
       setProgress(Math.round(progress * 100))
     })
     await ffmpeg.load({
@@ -40,7 +46,7 @@ export default function FFmpegClient({ videoFile, outputResolution, outputFormat
     setIsConverting(true)
     setProgress(0)
 
-    const ffmpeg = ffmpegRef.current
+    const { fetchFile } = await import('@ffmpeg/util')
     const inputFileName = 'input' + videoFile.name.substring(videoFile.name.lastIndexOf('.'))
     const outputFileName = `output.${outputFormat}`
 

@@ -5,7 +5,10 @@ import { Select } from "./components/ui/select"
 import { Button } from "./components/ui/button"
 import dynamic from 'next/dynamic'
 
-const FFmpegClient = dynamic(() => import('./components/FFmpegClient'), { ssr: false })
+const FFmpegClient = dynamic(() => import('./components/FFmpegClient'), { 
+  ssr: false,
+  loading: () => <p>Loading FFmpeg...</p>
+})
 
 export default function Home() {
   const [progress, setProgress] = useState(0)
